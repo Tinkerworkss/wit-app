@@ -1,17 +1,35 @@
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-white dark:bg-zinc-950 p-8">
-      <div className="max-w-lg text-center space-y-4">
-        <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+    <main style={{
+      display: "flex",
+      minHeight: "100vh",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "2rem",
+    }}>
+      <div style={{ maxWidth: "32rem", textAlign: "center" }}>
+        <h1 style={{ fontSize: "2.25rem", fontWeight: 700, letterSpacing: "-0.025em", marginBottom: "0.75rem" }}>
           Wit
         </h1>
-        <p className="text-lg text-zinc-500 dark:text-zinc-400">
+        <p style={{ fontSize: "1.125rem", color: "#6b7280", marginBottom: "1.5rem" }}>
           Meat inventory &amp; lot traceability platform
         </p>
-        <div className="inline-flex items-center gap-2 rounded-full bg-green-50 dark:bg-green-950 px-4 py-1.5 text-sm font-medium text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800">
-          <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+        <span style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          borderRadius: "9999px",
+          background: "#f0fdf4",
+          padding: "0.375rem 1rem",
+          fontSize: "0.875rem",
+          fontWeight: 500,
+          color: "#15803d",
+          border: "1px solid #bbf7d0",
+        }}>
+          <span style={{ width: "0.5rem", height: "0.5rem", borderRadius: "9999px", background: "#22c55e", display: "inline-block" }} />
           Service is running
-        </div>
+        </span>
       </div>
     </main>
   );
