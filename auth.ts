@@ -5,16 +5,31 @@ import { verifyPassword } from "@/lib/password";
 import type { Role } from "@prisma/client";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  session: {
+    strategy: "jwt",
+  },
+
+  pages: {
+    signIn: "/login",
+    error: "/login",
+  },
+
   providers: [
     Credentials({
+      name: "Credentials",
+
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
       },
+
       async authorize(credentials) {
-        const email = credentials?.email as string | undefined;
-        const password = credentials?.password as string | undefined;
-        if (!email || !password) return null;
+        const email = credentials?.email;
+        const password = credentials?.password;
+
+        if (typeof email !== "string" || typeof password !== "string") {
+          return null;
+        }
 
         const user = await prisma.user.findUnique({
           where: { email },
@@ -29,54 +44,61 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!user) return null;
 
-        const valid = await verifyPassword(password, user.passwordHash);
-        if (!valid) return null;
+        const isValid = await verifyPassword(password, user.passwordHash);
+        if (!isValid) return null;
 
-        const membership = user.memberships[0] ?? null;
+        const membership = user.memberships[0];
 
         return {
           id: user.id,
           email: user.email,
           name: user.name ?? undefined,
+
           organizationId: membership?.organizationId ?? null,
-          organizationName: membership?.organization.name ?? null,
-          organizationSlug: membership?.organization.slug ?? null,
+          organizationName: membership?.organization?.name ?? null,
+          organizationSlug: membership?.organization?.slug ?? null,
           role: membership?.role ?? null,
         };
       },
     }),
   ],
+
   callbacks: {
     jwt({ token, user }) {
       if (user) {
-        // Cast because next-auth User type doesn't know our custom fields
         const u = user as typeof user & {
           organizationId: string | null;
           organizationName: string | null;
           organizationSlug: string | null;
           role: Role | null;
         };
+
         token.organizationId = u.organizationId;
         token.organizationName = u.organizationName;
         token.organizationSlug = u.organizationSlug;
         token.role = u.role;
       }
+
       return token;
     },
+
     session({ session, token }) {
       if (session.user) {
         session.user.id = token.sub ?? "";
-        session.user.organizationId = token.organizationId as string | null;
-        session.user.organizationName = token.organizationName as string | null;
-        session.user.organizationSlug = token.organizationSlug as string | null;
-        session.user.role = token.role as Role | null;
+
+        session.user.organizationId =
+          (token.organizationId as string | null) ?? null;
+
+        session.user.organizationName =
+          (token.organizationName as string | null) ?? null;
+
+        session.user.organizationSlug =
+          (token.organizationSlug as string | null) ?? null;
+
+        session.user.role = (token.role as Role | null) ?? null;
       }
+
       return session;
     },
   },
-  pages: {
-    signIn: "/login",
-    error: "/login",
-  },
-  session: { strategy: "jwt" },
 });
