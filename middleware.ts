@@ -1,9 +1,16 @@
+import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { NextResponse } from "next/server";
 
-const PUBLIC_PATHS = ["/login", "/signup", "/api/auth", "/api/health"];
+const PUBLIC_PATHS = [
+  "/login",
+  "/signup",
+  "/api/auth",
+  "/api/health",
+  "/_next",
+  "/favicon.ico",
+];
 
-export async function middleware(req) {
+export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const isPublic = PUBLIC_PATHS.some((p) => pathname.startsWith(p));
