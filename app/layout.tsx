@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { SessionProvider } from "next-auth/react";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -6,15 +7,11 @@ export const metadata: Metadata = {
   description: "Meat inventory and lot traceability platform for modern processors.",
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" style={{ height: "100%" }}>
-      <body style={{ minHeight: "100%", display: "flex", flexDirection: "column" }}>
-        {children}
+    <html lang="en">
+      <body>
+        <SessionProvider>{children}</SessionProvider>
       </body>
     </html>
   );

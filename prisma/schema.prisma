@@ -5,11 +5,59 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
-// Placeholder model — full meat inventory schema added in WIT-4
+// ─── Multi-tenant core ────────────────────────────────────────────────────────
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members OrganizationMember[]
+
+  @@map("organizations")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  passwordHash  String
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  memberships OrganizationMember[]
+
+  @@map("users")
+}
+
+model OrganizationMember {
+  id             String   @id @default(cuid())
+  organizationId String
+  userId         String
+  role           Role     @default(MEMBER)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@map("organization_members")
+}
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+// ─── Placeholder model (remove after first migration) ────────────────────────
 model HealthCheck {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
+
+  @@map("health_checks")
 }
