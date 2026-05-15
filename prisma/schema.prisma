@@ -10,13 +10,19 @@ datasource db {
 // ─── Multi-tenant core ────────────────────────────────────────────────────────
 
 model Organization {
-  id        String   @id @default(cuid())
-  name      String
-  slug      String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  name           String
+  slug           String   @unique
+  // USDA establishment number for processors/slaughterhouses
+  usdaEstNumber  String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  members OrganizationMember[]
+  members   OrganizationMember[]
+  locations Location[]
+  lots      Lot[]
+  inventory Inventory[]
+  movements Movement[]
 
   @@map("organizations")
 }
@@ -54,10 +60,132 @@ enum Role {
   MEMBER
 }
 
-// ─── Placeholder model (remove after first migration) ────────────────────────
-model HealthCheck {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
+// ─── Meat domain ──────────────────────────────────────────────────────────────
 
-  @@map("health_checks")
+enum LocationType {
+  cooler
+  freezer
+  blast_freezer
+  dry_storage
+  loading_dock
+  processing_floor
+  quarantine
+}
+
+enum LotStatus {
+  active
+  quarantine
+  depleted
+  recalled
+  disposed
+}
+
+enum MovementType {
+  receipt
+  sale
+  transfer
+  waste
+  adjustment
+  return
+}
+
+// Storage area within an org — cooler, freezer, dock, etc.
+// minTempCelsius / maxTempCelsius are required for cold-chain compliance.
+model Location {
+  id              String       @id @default(cuid())
+  orgId           String
+  name            String
+  locationType    LocationType
+  // Nullable: not all locations have automated temperature monitoring
+  minTempCelsius  Decimal?     @db.Decimal(5, 2)
+  maxTempCelsius  Decimal?     @db.Decimal(5, 2)
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+
+  organization  Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  inventory     Inventory[]
+  movementsFrom Movement[]   @relation("FromLocation")
+  movementsTo   Movement[]   @relation("ToLocation")
+
+  @@map("locations")
+}
+
+// A discrete batch of meat with a single source, cut, and traceability chain.
+// lotNumber is unique per organization. All three dates are required.
+model Lot {
+  id                 String    @id @default(cuid())
+  orgId              String
+  lotNumber          String
+  species            String    // beef | pork | chicken | lamb | turkey | veal | bison | other
+  primalCut          String    // chuck | rib | loin | round | brisket | shoulder | belly | ...
+  productDescription String?   // e.g. "80/20 ground beef" for further-processed items
+  supplierName       String
+  supplierLotRef     String?   // supplier's own batch reference for reverse traceability
+  countryOfOrigin    String    // COOL requirement for US retail
+  // All three dates are NOT NULL — expiry_date drives FEFO allocation
+  slaughterDate      DateTime  @db.Date
+  packDate           DateTime  @db.Date
+  expiryDate         DateTime  @db.Date
+  initialWeightKg    Decimal   @db.Decimal(12, 3)
+  grade              String?   // USDA Prime | Choice | Select | Grade A | etc.
+  notes              String?
+  status             LotStatus @default(active)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  inventory    Inventory[]
+  movements    Movement[]
+
+  // Lot numbers must be unique within an org
+  @@unique([orgId, lotNumber])
+  @@map("lots")
+}
+
+// Current on-hand quantity for a (lot, location) pair.
+// Updated by the application layer on every movement insert.
+// One row per lot-location combination; quantity never goes below 0.
+model Inventory {
+  id             String    @id @default(cuid())
+  orgId          String
+  lotId          String
+  locationId     String
+  quantityOnHand Decimal   @default(0) @db.Decimal(12, 3)
+  lastMovementAt DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  lot          Lot          @relation(fields: [lotId], references: [id])
+  location     Location     @relation(fields: [locationId], references: [id])
+
+  @@unique([lotId, locationId])
+  @@map("inventory")
+}
+
+// Immutable audit log of every quantity change.
+// Movement types: receipt (in from supplier), sale (out to customer),
+// transfer (between locations), waste (spoilage/trim), adjustment (manual
+// correction), return (customer return).
+// fromLocationId: NULL for receipts. toLocationId: NULL for sales/waste.
+model Movement {
+  id              String       @id @default(cuid())
+  orgId           String
+  lotId           String
+  movementType    MovementType
+  fromLocationId  String?
+  toLocationId    String?
+  quantity        Decimal      @db.Decimal(12, 3)
+  referenceNumber String?      // PO, invoice, BOL, sales order
+  movedAt         DateTime     @default(now())
+  recordedBy      String?
+  notes           String?
+  createdAt       DateTime     @default(now())
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  lot          Lot          @relation(fields: [lotId], references: [id])
+  fromLocation Location?    @relation("FromLocation", fields: [fromLocationId], references: [id])
+  toLocation   Location?    @relation("ToLocation", fields: [toLocationId], references: [id])
+
+  @@map("movements")
 }
