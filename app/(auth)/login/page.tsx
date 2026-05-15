@@ -1,26 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 export default function LoginPage() {
   const router = useRouter();
-
-  const [callbackUrl, setCallbackUrl] = useState("/dashboard");
+  const searchParams = useSearchParams();
+  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  // ✅ SAFE: client-only read after mount
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const cb = params.get("callbackUrl");
-    if (cb) setCallbackUrl(cb);
-  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
