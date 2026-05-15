@@ -23,13 +23,18 @@ jobs:
           node-version: 20
           cache: npm
 
-      - run: npm ci
+      - run: npm install -g vercel@latest
 
-      - name: Deploy
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: ${{ github.event.workflow_run.head_branch == 'main' && '--prod' || '' }}
-          working-directory: ./
+      - name: Deploy to production
+        if: ${{ github.event.workflow_run.head_branch == 'main' }}
+        run: vercel --prod --token=${{ secrets.VERCEL_TOKEN }} --yes
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Deploy to preview
+        if: ${{ github.event.workflow_run.head_branch != 'main' }}
+        run: vercel --token=${{ secrets.VERCEL_TOKEN }} --yes
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
